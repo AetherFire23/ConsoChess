@@ -17,7 +17,7 @@ namespace ConsoleChess.ChessStuff
         // used to verify if the king can eat on a piece that is protected
         // since it cant put itself in check
         public List<ChessCell> ValidCellsIncludingFriendlyAndFirstBlockingPiece { get; set; } = new();
-        
+
         public bool IsCheckingEKing => IsCheckingEnemyKing();
         public bool IsObservingEnemyKing => GetLineOfPiecesObservingOppositeKing().Any();
 
@@ -34,37 +34,59 @@ namespace ConsoleChess.ChessStuff
 
         public virtual void MoveToOtherCell(ChessCell nextCell)
         {
+            // big problems when eating pieces
+            if (nextCell.HasPiece)
+            {
+                //Cell.Piece.Cell = null; // no cross=refrences
+
+            }
+
             Cell.Piece = null;
             nextCell.Piece = this;
             this.Cell = nextCell;
         }
 
         public abstract List<(Direction direction, List<ChessCell> Cells)> GetObservedDirectionsAndCells();
-        public abstract List<ChessCell> GetValidCellMoves(List<Piece> allPieces);
+        public abstract List<ChessCell> GetUnrestrictedAttackedCells(List<Piece> allPieces);
+
+        public List<ChessCell> GetValidCellMoves(List<Piece> allPieces)
+        {
+            var unrestrictedAttacked = GetUnrestrictedAttackedCells(allPieces);
+            var restricted = RestrictPieceMovementDueToPinsOrKingCheck(allPieces, unrestrictedAttacked);
+            return restricted;
+        }
 
         public List<ChessCell> RestrictPieceMovementDueToPinsOrKingCheck(List<Piece> allPieces, List<ChessCell> otherwiseValidMoves)
         {
-            var friendlyPieces = allPieces.Where(x => !IsOppositeTeamPiece(x)).ToList();
-            King friendlyKing = friendlyPieces.First(x => x is King) as King;
-            var enemyPieces = allPieces.Where(IsOppositeTeamPiece).ToList();
+            var teamInfo = new MoveInfo(allPieces, this);
 
             // restrict moves due to This piece being pinned to the king
-            if (this.IsPinned(enemyPieces, friendlyKing)) return new List<ChessCell>();
+            if (this.IsPinned(teamInfo.EnemyPieces, teamInfo.FriendlyKing)) return new List<ChessCell>();
 
             // restrict moves due to king being checked
             // a move cannot be allowed to unpin a king if there are 2 attacking pieces. cant block attacks from both sides in 1 move!
-            var checkingPieces = enemyPieces.Where(x => x.IsCheckingEKing).ToList();
+            var checkingPieces = teamInfo.EnemyPieces.Where(x => x.IsCheckingEKing).ToList();
             if (!checkingPieces.Any()) return otherwiseValidMoves; // king not in check
 
             if (this is not King)
             {
                 if (checkingPieces.Count > 1) return new List<ChessCell>(); // cannot protect the king if 2 piecs attack at the same time
 
-                return otherwiseValidMoves
-                .Where(x => MoveUnchecksFriendlyKingByIntersectingAttackLine(friendlyKing, checkingPieces.First(), x))
+                var attackingPiece = checkingPieces.First();
+                // here add some conditions that spcifies that if you can capture uncheck the king  if you can eat the attacker
+
+                // check if it can eat the attackingPiece
+                var remainingMovesLeft = otherwiseValidMoves
+                .Where(cell =>
+                MoveUnchecksFriendlyKingByIntersectingAttackLine(teamInfo.FriendlyKing, checkingPieces.First(), cell)
+                || MoveEatsPieceIfUnrestricted(allPieces, attackingPiece))
                 .ToList();
+
+                return remainingMovesLeft;
             }
 
+            // the only allowd moves for the king is the one where no valid squares where the enemy pieces can go.
+            // There is furtehr restriction i think directly in the king class so I think i can delete this
             var validAttackingPieceMoves = checkingPieces.Select(x => x.GetValidCellMoves(allPieces)).SelectMany(x => x).ToList();
             var validMoves = otherwiseValidMoves.Where(x => !validAttackingPieceMoves.Contains(x)).ToList();
             return validMoves;
@@ -87,15 +109,13 @@ namespace ConsoleChess.ChessStuff
 
         public bool IsPinned(List<Piece> enemyPieces, King friendlyKing) // works
         {
-            List<Piece> piecesInLineObservingFriendlyKingAndThisPiece = enemyPieces
+            var linesOfPiecesFacingFriendlyKing = enemyPieces
                 .Where(x => x.IsObservingEnemyKing)
                 .Where(x => x.GetLineOfPiecesObservingOppositeKing().Contains(this))
-                .ToList();
-
-            if (piecesInLineObservingFriendlyKingAndThisPiece.Count > 2) return false;
-
-            bool isPinned = piecesInLineObservingFriendlyKingAndThisPiece
                 .Select(x => x.GetLineOfPiecesObservingOppositeKing())
+                .Where(x => x.Count < 2).ToList(); // important : if more than 1 piece in face of king in line, it means that no piece can be pinned
+
+            bool isPinned = linesOfPiecesFacingFriendlyKing
                 .Any(x => x.IndexOf(this) < x.IndexOf(friendlyKing));
 
             return isPinned;
@@ -176,6 +196,13 @@ namespace ConsoleChess.ChessStuff
         {
             bool isOpposite = this.IsLocalTeam != piece.IsLocalTeam;
             return isOpposite;
+        }
+
+        public bool MoveEatsPieceIfUnrestricted(List<Piece> allPieces, Piece piece)
+        {
+            var attackedCells = GetUnrestrictedAttackedCells(allPieces);
+            bool canEat = attackedCells.Contains(piece.Cell);
+            return canEat;
         }
     }
 }

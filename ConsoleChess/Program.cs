@@ -4,10 +4,11 @@ using ConsoleChess.GridBase;
 TurnManager turnManager = new TurnManager();
 
 var layout = new ChessGrid(8, 8);
-var localPieces = PiecesInitializer.InitLocalPieces(layout);
-var enemyPieces = PiecesInitializer.InitOppositePieces(layout);
+var localPieces = PiecesInitializer.InitDummyLocal(layout);
+var enemyPieces = PiecesInitializer.InitDummyEnemy(layout);
 
-
+// problems : la queen mange le king
+// checker les conditions parce que la queen mange pas le monde a 1 distance quand le king checked
 var allpieces = localPieces.Union(enemyPieces).ToList();
 
 while (true)
@@ -19,7 +20,7 @@ while (true)
         Console.WriteLine($"checkmate : king of color {King.Color} has lost ");
         Console.ReadLine();
     }
-
+    // LogPiecesThatCanPlay(allpieces);
     // ask to select piece
     layout.PrintChessBoard();
     var selectedCell = InputCellPosition("enter a piece position (x,y)");
@@ -41,16 +42,14 @@ while (true)
 
 static bool IsKingCheckmated(King someKing, List<Piece> allPiecesParam)
 {
-    var enemyPieces = allPiecesParam.Where(x => someKing.IsOppositeTeamPiece(x)).ToList();
-    List<ChessCell> validTargetsOfEnemyPieces = enemyPieces
-        .Select(x => x.ValidCellsIncludingFriendlyAndFirstBlockingPiece).SelectMany(x => x).ToList();
-
-
-    bool isCheckedKing = validTargetsOfEnemyPieces.Contains(someKing.Cell);
-    bool isCheckmated = isCheckedKing // king positions and all its neighbors are contained in valid moves
-        && someKing.Cell.Neighbors.All(n => validTargetsOfEnemyPieces.Contains(n.Value));
-
-    return isCheckmated;
+    MoveInfo info = new MoveInfo(allPiecesParam, someKing);
+    var friendlyTargets = info.FriendlyPieces.Select(x => x.GetValidCellMoves(allPiecesParam))
+        .SelectMany(x => x).ToList();
+    if (friendlyTargets.Count == 0)
+    {
+        return true;
+    }
+    return false;
 }
 
 
@@ -106,3 +105,17 @@ static (bool IsCheckmated, King King) GetCheckmatedKingOrDefault(List<Piece> all
 
     return (false, null);
 }
+
+//static void LogPiecesThatCanPlay(List<Piece> allPieces)
+//{
+//    foreach (Piece piece in allPieces)
+//    {
+//        var targets = piece.GetValidCellMoves(allPieces);
+//        if (targets.Count != 0)
+//        {
+//            Console.WriteLine($"{piece} ({piece.IsLocalTeam})");
+//        }
+//    }
+//    Console.ReadLine();
+
+//}

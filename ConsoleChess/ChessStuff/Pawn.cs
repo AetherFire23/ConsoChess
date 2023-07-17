@@ -50,7 +50,8 @@ namespace ConsoleChess.ChessStuff
             }
             return forwardCells;
         }
-        public override List<ChessCell> GetValidCellMoves(List<Piece> allPieces)
+
+        public override List<ChessCell> GetUnrestrictedAttackedCells(List<Piece> allPieces)
         {
             var validCells = new List<ChessCell>();
             foreach ((Direction direction, List<ChessCell> Cells) in GetObservedDirectionsAndCells())
@@ -67,9 +68,7 @@ namespace ConsoleChess.ChessStuff
                 : Direction.South;
             validCells.AddRange(GetForwardMoveCells(forwardDirection));
             return validCells;
-
         }
-
         public override void MoveToOtherCell(ChessCell nextCell)
         {
             base.MoveToOtherCell(nextCell); // normal move plus setting firstMove to false
@@ -81,6 +80,7 @@ namespace ConsoleChess.ChessStuff
         {
             return "P";
         }
+
 
     }
 }

@@ -13,6 +13,17 @@ namespace ConsoleChess.ChessStuff
         {
         }
 
+        public override List<ChessCell> GetUnrestrictedAttackedCells(List<Piece> allPieces)
+        {
+            var observed = GetObservedDirectionsAndCells();
+
+            var valid = observed.SelectMany(x => x.Cells)
+                .ToList()
+                .FilterFriendlyPieces(this)
+                .ToList();
+            return valid;
+        }
+
         public override List<(Direction direction, List<ChessCell> Cells)> GetObservedDirectionsAndCells()
         {
             List<(Direction Direction, List<ChessCell> Cells)> sex = new();
@@ -38,20 +49,6 @@ namespace ConsoleChess.ChessStuff
             }
 
             return sex;
-        }
-
-        public override List<ChessCell> GetValidCellMoves(List<Piece> allPieces)
-        {
-            var observed = GetObservedDirectionsAndCells();
-            var includingFriendly = observed.SelectMany(x => x.Cells)
-                .ToList();
-
-            this.ValidCellsIncludingFriendlyAndFirstBlockingPiece.AddRange(includingFriendly);
-            var valid = observed.SelectMany(x => x.Cells)
-                .ToList()
-                .FilterFriendlyPieces(this)
-                .ToList();
-            return valid;
         }
         public override string ToString()
         {

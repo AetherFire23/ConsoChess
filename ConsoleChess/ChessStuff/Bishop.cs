@@ -13,6 +13,15 @@ namespace ConsoleChess.ChessStuff
         {
         }
 
+        public override List<ChessCell> GetUnrestrictedAttackedCells(List<Piece> allPieces)
+        {
+            var observedTargets = GetObservedDirectionsAndCells();
+            var valid = observedTargets
+                .Select(x => x.Cells.GetCellsUntil(this, true, true))
+                .SelectMany(x => x).ToList();
+            return valid;
+        }
+
         public override List<(Direction direction, List<ChessCell> Cells)> GetObservedDirectionsAndCells()
         {
             var observedTargets = DirectionHelper
@@ -22,17 +31,6 @@ namespace ConsoleChess.ChessStuff
 
             return observedTargets;
         }
-
-        public override List<ChessCell> GetValidCellMoves(List<Piece> allPieces)
-        {
-            var observedTargets = GetObservedDirectionsAndCells();
-            var valid = observedTargets
-                .Select(x => x.Cells.GetCellsUntil(this, true, true))
-                .SelectMany(x => x).ToList();
-
-            return base.RestrictPieceMovementDueToPinsOrKingCheck(allPieces, valid);
-        }
-
         public override string ToString()
         {
             return "B";
